@@ -1237,6 +1237,39 @@ def collect_answer(state: AgentState):
 
 Assemble the complete workflow graph with conversation memory and multi-agent architecture.
 
+<details>
+<summary>Architecture Flow Diagram</summary>
+
+```mermaid
+flowchart TD
+    start(["__start__"]) --> summarize_history("summarize_history")
+    summarize_history --> rewrite_query("rewrite_query")
+
+    rewrite_query -.-> request_clarification("request_clarification<br/>───────────────<br/>__interrupt = before")
+    request_clarification --> rewrite_query
+
+    rewrite_query -.-> agent_start
+
+    subgraph agent ["agent"]
+        agent_start(["__start__"]) --> orchestrator("orchestrator")
+        orchestrator -.-> tools("tools")
+        orchestrator -.-> fallback_response("fallback_response")
+        orchestrator -.-> collect_answer("collect_answer")
+
+        tools --> should_compress_context("should_compress_context")
+        should_compress_context -.-> compress_context("compress_context")
+        should_compress_context -.-> orchestrator
+        compress_context --> orchestrator
+
+        fallback_response --> collect_answer
+    end
+
+    collect_answer --> aggregate_answers("aggregate_answers")
+    aggregate_answers --> end_node(["__end__"])
+```
+
+</details>
+
 ```python
 from langgraph.graph import START, END, StateGraph
 from langgraph.prebuilt import ToolNode
@@ -1278,8 +1311,6 @@ agent_graph = graph_builder.compile(checkpointer=checkpointer, interrupt_before=
 ```
 
 **Graph architecture explained:**
-
-The architecture flow diagram can be viewed **[here](./assets/agentic_rag_workflow.png)**.
 
 **Agent Subgraph** (processes individual questions):
 - START → `orchestrator` (invoke LLM with tools)
